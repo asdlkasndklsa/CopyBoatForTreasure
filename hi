@@ -1,0 +1,297 @@
+repeat wait()
+until game:IsLoaded()
+
+local library = loadstring(game:HttpGet(('https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/wall%20v3')))()
+
+local window = library:CreateWindow("Build A Boat For Treasure")
+local folder = window:CreateFolder("Steal Boats")
+
+local players = game.Players:GetPlayers()
+local dropdown
+
+getgenv().coloring = true
+
+label = folder:Label("0/0",{
+    TextSize = 17;
+    TextColor = Color3.fromRGB(169, 169, 169);
+    BgColor = Color3.fromRGB(38, 38, 38);
+}) 
+
+dropdown = folder:Dropdown("Select Target",players,true,function(target)
+    --Variables
+    local target2 = game.Players[target]
+    local targetcolor
+    local teambase
+    local targetbase
+    local teamcolor
+    local data
+    
+    --Tools
+    local buildtool
+    local scaletool
+    local painttool
+    
+    buildtool = game.Players.LocalPlayer.Backpack:FindFirstChild('BuildingTool') or game.Players.LocalPlayer.Character:WaitForChild('BuildingTool')
+    scaletool = game.Players.LocalPlayer.Backpack:FindFirstChild('ScalingTool') or game.Players.LocalPlayer.Character:WaitForChild('ScalingTool')
+    painttool = game.Players.LocalPlayer.Backpack:FindFirstChild('PaintingTool') or game.Players.LocalPlayer.Character:WaitForChild('PaintingTool')
+    
+    --Your base and target base
+    targetcolor = tostring(target2.TeamColor)
+    teamcolor = tostring(game.Players.LocalPlayer.TeamColor)
+    teambase = game.Workspace[teamcolor.. 'Zone']
+    targetbase = game.Workspace[targetcolor.. 'Zone']
+    data = game.Players.LocalPlayer.Data
+
+    --Create build folder
+    if not getgenv().nf then
+        local newfolder = Instance.new('Folder', game.Workspace)
+        newfolder.Name = 'Builds'
+        getgenv().nf = true
+    end
+    
+    --Create model for targets build
+    local newmodel = Instance.new('Model', game.Workspace.Builds)
+    newmodel.Name = target2.Name.. "'s build"
+    
+    --Find targets blocks
+    for i, v in pairs(game.Workspace:GetDescendants()) do
+        if v.Name == 'Tag' and v.Value == target2.Name then
+            v.Parent.Parent = newmodel
+        end
+    end
+    
+    --Clone and move to base to use as template
+    local clonedmodel = newmodel:Clone()
+    local clonedtargetbase = targetbase:Clone()
+    clonedtargetbase.Parent = clonedmodel
+    clonedmodel.Parent = game.Workspace.Builds
+    clonedmodel.Name = clonedmodel.Name.. ' cloned'
+    clonedmodel.PrimaryPart = clonedtargetbase
+    clonedmodel:SetPrimaryPartCFrame(teambase.CFrame)
+    clonedtargetbase:Destroy()
+    
+    --Template transparency
+    getgenv().transparency = 90
+    for i, v in pairs(clonedmodel:GetDescendants()) do
+        if v:IsA('BasePart') then
+            v.Transparency = getgenv().transparency / 100
+            v.CanCollide = false
+        end
+    end
+    
+    --Data for blocks left
+    local totalamount = #clonedmodel:GetChildren()
+    local currentamount = 0
+    
+    --Builder
+    getgenv().currentstatus = 'play'
+    for i, v in pairs(clonedmodel:GetChildren()) do
+        buildtool = game.Players.LocalPlayer.Backpack:FindFirstChild('BuildingTool') or game.Players.LocalPlayer.Character:FindFirstChild('BuildingTool')
+        scaletool = game.Players.LocalPlayer.Backpack:FindFirstChild('ScalingTool') or game.Players.LocalPlayer.Character:FindFirstChild('ScalingTool')
+        painttool = game.Players.LocalPlayer.Backpack:FindFirstChild('PaintingTool') or game.Players.LocalPlayer.Character:FindFirstChild('PaintingTool')
+        if getgenv().currentstatus == 'stop' then
+            repeat wait()
+            until getgenv().currentstatus == 'play' or getgenv().currentstatus == 'cancel'
+        elseif getgenv().currentstatus == 'cancel' then
+            break
+        end
+        local findblock
+        local foundblock
+        
+        --Find placed block
+        findblock = game.Workspace.ChildAdded:Connect(function(block)
+            if block:WaitForChild('Tag').Value == game.Players.LocalPlayer.Name then
+                foundblock = block
+                findblock:Disconnect()
+            end
+        end)
+    
+        --Remotes to build scale and paint
+        buildtool.RF:InvokeServer(v.Name,data[v.Name].Value, v.PPart, CFrame.new(0, 0, 0), true, 1, v.PPart.CFrame)
+        scaletool.RF:InvokeServer(foundblock, v.PPart.Size, v.PPart.CFrame)
+        if getgenv().coloring then
+            painttool.RF:InvokeServer({{foundblock, v.PPart.Color}})
+        end
+    
+        currentamount = currentamount + 1
+        label:Refresh(currentamount..'/'..totalamount)
+    end
+    
+    label:Refresh('Finished!')
+    clonedmodel:Destroy()
+    for i, v in pairs(game.Workspace.Builds[target2.Name.."'s build"]:GetChildren()) do
+        v.Parent = game.Workspace
+    end
+    game.Workspace.Builds[target2.Name.."'s build"]:Destroy()
+end)
+
+folder:Slider("Template Transparency",{
+    min = 0; -- min value of the slider
+    max = 100; -- max value of the slider
+    precise = false; -- max 2 decimals
+},function(value)
+    getgenv().transparency = value
+    pcall(function()
+        for i, v in pairs(game.Workspace.Builds:GetDescendants()) do
+            if v:IsA('BasePart') then
+                v.Transparency = getgenv().transparency / 100
+                v.CanCollide = false
+            end
+        end
+    end)
+end)
+
+folder:Toggle("Disable Coloring",function(bool)
+    if bool then
+        getgenv().coloring = false
+    elseif not bool then
+        getgenv().coloring = true
+    end
+end)
+
+folder:Button("Play",function()
+    getgenv().currentstatus = 'play'
+end)
+
+folder:Button("Stop",function()
+    getgenv().currentstatus = 'stop'
+end)
+
+folder:Button("Cancel",function()
+    getgenv().currentstatus = 'cancel'
+end)
+
+game.Players.PlayerAdded:Connect(function()
+    dropdown:Refresh(game.Players:GetPlayers())
+end)
+
+game.Players.PlayerRemoving:Connect(function()
+    dropdown:Refresh(game.Players:GetPlayers())
+end)
+
+label2 = folder:Label("-",{
+    TextSize = 17;
+    TextColor = Color3.fromRGB(169, 169, 169);
+    BgColor = Color3.fromRGB(38, 38, 38);
+}) 
+
+folder:Button("Boat Finder",function()
+    local finder
+    local player = game.Players.LocalPlayer
+    local mouse = player:GetMouse()
+    label2:Refresh('Click on a players boat...')
+    finder = mouse.Button1Down:connect(function()
+        if mouse.Target.Parent:FindFirstChild('Tag') ~= nil then
+            finder:Disconnect()
+            label2:Refresh('Selected '.. mouse.Target.Parent:FindFirstChild('Tag').Value)
+            --Variables
+            local target2 = game.Players[mouse.Target.Parent:FindFirstChild('Tag').Value]
+            local targetcolor
+            local teambase
+            local targetbase
+            local teamcolor
+            local data
+            
+            --Tools
+            local buildtool
+            local scaletool
+            local painttool
+            
+            buildtool = game.Players.LocalPlayer.Backpack:FindFirstChild('BuildingTool') or game.Players.LocalPlayer.Character:FindFirstChild('BuildingTool')
+            scaletool = game.Players.LocalPlayer.Backpack:FindFirstChild('ScalingTool') or game.Players.LocalPlayer.Character:FindFirstChild('ScalingTool')
+            painttool = game.Players.LocalPlayer.Backpack:FindFirstChild('PaintingTool') or game.Players.LocalPlayer.Character:FindFirstChild('PaintingTool')
+            
+            --Your base and target base
+            targetcolor = tostring(target2.TeamColor)
+            teamcolor = tostring(game.Players.LocalPlayer.TeamColor)
+            teambase = game.Workspace[teamcolor.. 'Zone']
+            targetbase = game.Workspace[targetcolor.. 'Zone']
+            data = game.Players.LocalPlayer.Data
+        
+            --Create build folder
+            if not getgenv().nf then
+                local newfolder = Instance.new('Folder', game.Workspace)
+                newfolder.Name = 'Builds'
+                getgenv().nf = true
+            end
+            
+            --Create model for targets build
+            local newmodel = Instance.new('Model', game.Workspace.Builds)
+            newmodel.Name = target2.Name.. "'s build"
+            
+            --Find targets blocks
+            for i, v in pairs(game.Workspace:GetDescendants()) do
+                if v.Name == 'Tag' and v.Value == target2.Name then
+                    v.Parent.Parent = newmodel
+                end
+            end
+            
+            --Clone and move to base to use as template
+            local clonedmodel = newmodel:Clone()
+            local clonedtargetbase = targetbase:Clone()
+            clonedtargetbase.Parent = clonedmodel
+            clonedmodel.Parent = game.Workspace.Builds
+            clonedmodel.Name = clonedmodel.Name.. ' cloned'
+            clonedmodel.PrimaryPart = clonedtargetbase
+            clonedmodel:SetPrimaryPartCFrame(teambase.CFrame)
+            clonedtargetbase:Destroy()
+            
+            --Template transparency
+            getgenv().transparency = 90
+            for i, v in pairs(clonedmodel:GetDescendants()) do
+                if v:IsA('BasePart') then
+                    v.Transparency = getgenv().transparency / 100
+                    v.CanCollide = false
+                end
+            end
+            
+            --Data for blocks left
+            local totalamount = #clonedmodel:GetChildren()
+            local currentamount = 0
+            
+            --Builder
+            getgenv().currentstatus = 'play'
+            for i, v in pairs(clonedmodel:GetChildren()) do
+                buildtool = game.Players.LocalPlayer.Backpack:WaitForChild('BuildingTool') or game.Players.LocalPlayer.Character:WaitForChild('BuildingTool')
+                scaletool = game.Players.LocalPlayer.Backpack:WaitForChild('ScalingTool') or game.Players.LocalPlayer.Character:WaitForChild('ScalingTool')
+                painttool = game.Players.LocalPlayer.Backpack:WaitForChild('PaintingTool') or game.Players.LocalPlayer.Character:WaitForChild('PaintingTool')
+                if getgenv().currentstatus == 'stop' then
+                    repeat wait()
+                    until getgenv().currentstatus == 'play' or getgenv().currentstatus == 'cancel'
+                elseif getgenv().currentstatus == 'cancel' then
+                    break
+                end
+                local findblock
+                local foundblock
+                
+                --Find placed block
+                findblock = game.Workspace.ChildAdded:Connect(function(block)
+                    if block:WaitForChild('Tag').Value == game.Players.LocalPlayer.Name then
+                        foundblock = block
+                        findblock:Disconnect()
+                    end
+                end)
+            
+                --Remotes to build scale and paint
+                buildtool.RF:InvokeServer(v.Name,data[v.Name].Value, v.PPart, CFrame.new(0, 0, 0), true, 1, v.PPart.CFrame)
+                scaletool.RF:InvokeServer(foundblock, v.PPart.Size, v.PPart.CFrame)
+                if getgenv().coloring then
+                    painttool.RF:InvokeServer({{foundblock, v.PPart.Color}})
+                end
+            
+                currentamount = currentamount + 1
+                label:Refresh(currentamount..'/'..totalamount)
+            end
+            
+            label:Refresh('Finished!')
+            clonedmodel:Destroy()
+            for i, v in pairs(game.Workspace.Builds[target2.Name.."'s build"]:GetChildren()) do
+                v.Parent = game.Workspace
+            end
+            game.Workspace.Builds[target2.Name.."'s build"]:Destroy()
+        else
+            label2:Refresh('Error finding boat.')
+            finder:Disconnect()
+        end
+    end)
+end)
